@@ -13,11 +13,24 @@ var squareITS = []byte("IMPSsquare.wav\x00\x00\x00\x01\x01\x02square.wav\x00" +
 	"\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f")
 
 func TestReadSample(t *testing.T) {
+	// test invalid read on empty data
+	r := bytes.NewReader([]byte{})
+	if _, err := ReadSample(r); err == nil {
+		t.Errorf("ReadSample() did not return error for empty data")
+	}
+
+	// test invalid read on bad data
+	data := append([]byte("NOPE"), squareITS[4:]...)
+	r = bytes.NewReader(data)
+	if _, err := ReadSample(r); err == nil {
+		t.Errorf("ReadSample() did not return error for bad data")
+	}
+
 	// test valid read
-	r := bytes.NewReader(squareITS)
+	r = bytes.NewReader(squareITS)
 	s, err := ReadSample(r)
 	if err != nil {
-		t.Errorf("readSample() returned error: %v", err)
+		t.Fatalf("ReadSample() returned error: %v", err)
 	}
 
 	// test fields
@@ -82,16 +95,4 @@ func TestReadSample(t *testing.T) {
 		t.Errorf("Sample.Data == %v; want %v", got, want)
 	}
 
-	// test invalid read on empty data
-	r = bytes.NewReader([]byte{})
-	if _, err := ReadSample(r); err == nil {
-		t.Errorf("readSample() did not return error for empty data")
-	}
-
-	// test invalid read on bad data
-	data := append([]byte("NOPE"), squareITS[4:]...)
-	r = bytes.NewReader(data)
-	if _, err := ReadSample(r); err == nil {
-		t.Errorf("readSample() did not return error for bad data")
-	}
 }
