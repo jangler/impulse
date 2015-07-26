@@ -66,16 +66,17 @@ type Sample struct {
 	VibratoDepth     uint8 // range 0->64
 	VibratoWaveform  VibratoWaveform
 	VibratoRate      uint8
+	Data             []byte
 }
 
-func sampleFromRaw(raw *rawSample) *Sample {
-	return &Sample{
+func sampleFromRaw(raw *rawSample, r io.ReadSeeker) (*Sample, error) {
+	s := Sample{
 		Filename:         string(bytes.Trim(raw.DOSFilename[:], "\x00")),
 		GlobalVolume:     raw.GvL,
 		Flags:            SampleFlag(raw.Flg),
 		DefaultVolume:    raw.Vol,
 		Name:             string(bytes.Trim(raw.SampleName[:], "\x00")),
-		Signed:           raw.Cvt&0x80 != 0,
+		Signed:           raw.Cvt&0x01 != 0,
 		DefaultPan:       raw.DfP & 0x4f,
 		DefaultPanOn:     raw.DfP&0x80 != 0,
 		Length:           raw.Length,
@@ -89,10 +90,25 @@ func sampleFromRaw(raw *rawSample) *Sample {
 		VibratoRate:      raw.ViR,
 		VibratoWaveform:  VibratoWaveform(raw.ViT),
 	}
+
+	if s.Flags&Quality16Bit != 0 {
+		s.Data = make([]byte, s.Length*2)
+	} else {
+		s.Data = make([]byte, s.Length)
+	}
+
+	if _, err := r.Seek(int64(raw.SamplePointer), 0); err != nil {
+		return nil, err
+	}
+	if _, err := r.Read(s.Data); err != nil {
+		return nil, err
+	}
+
+	return &s, nil
 }
 
 // ReadSample reads a Sample in ITS format from r.
-func ReadSample(r io.Reader) (*Sample, error) {
+func ReadSample(r io.ReadSeeker) (*Sample, error) {
 	raw := new(rawSample)
 	if err := binary.Read(r, binary.LittleEndian, raw); err != nil {
 		return nil, err
@@ -100,5 +116,5 @@ func ReadSample(r io.Reader) (*Sample, error) {
 	if string(raw.MagicString[:]) != "IMPS" {
 		return nil, errors.New("data is not Impulse Tracker sample")
 	}
-	return sampleFromRaw(raw), nil
+	return sampleFromRaw(raw, r)
 }
