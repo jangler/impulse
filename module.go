@@ -38,6 +38,7 @@ type Module struct {
 	InitialTempo    uint8
 	Separation      uint8 // range 0->128
 	PitchWheelDepth uint8
+	Message         string
 	ChannelPanning  []uint8 // range 0->64
 	ChannelVolume   []uint8 // range 0->64
 	OrderList       []uint8 // range 0->199, 254, 255
@@ -68,6 +69,18 @@ func moduleFromRaw(raw *rawModule, r io.ReadSeeker) (*Module, error) {
 	}
 	if _, err := r.Read(m.OrderList); err != nil {
 		return nil, err
+	}
+
+	// read message
+	if raw.Special&0x0001 != 0 {
+		if _, err := r.Seek(int64(raw.MessageOffset), 0); err != nil {
+			return nil, err
+		}
+		p := make([]byte, raw.MsgLgth)
+		if _, err := r.Read(p); err != nil {
+			return nil, err
+		}
+		m.Message = string(p)
 	}
 
 	for i := range m.Samples {
