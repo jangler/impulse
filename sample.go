@@ -66,7 +66,7 @@ type Sample struct {
 	VibratoDepth     uint8 // range 0->64
 	VibratoWaveform  VibratoWaveform
 	VibratoRate      uint8
-	Data             []byte
+	Data             []byte // PCM audio data
 }
 
 func sampleFromRaw(raw *rawSample, r io.ReadSeeker) (*Sample, error) {
@@ -117,4 +117,51 @@ func ReadSample(r io.ReadSeeker) (*Sample, error) {
 		return nil, errors.New("data is not Impulse Tracker sample")
 	}
 	return sampleFromRaw(raw, r)
+}
+
+// Write writes the Sample to w in ITS format.
+func (s *Sample) Write(w io.Writer) error {
+	raw := &rawSample{
+		MagicString:   [4]byte{'I', 'M', 'P', 'S'},
+		GvL:           s.GlobalVolume,
+		Flg:           uint8(s.Flags),
+		Vol:           s.DefaultVolume,
+		DfP:           s.DefaultPan,
+		Length:        s.Length,
+		LoopBegin:     s.LoopBegin,
+		LoopEnd:       s.LoopEnd,
+		C5Speed:       s.Speed,
+		SusLoopBegin:  s.SustainLoopBegin,
+		SusLoopEnd:    s.SustainLoopEnd,
+		SamplePointer: 0x0050,
+		ViS:           s.VibratoSpeed,
+		ViD:           s.VibratoDepth,
+		ViR:           s.VibratoRate,
+		ViT:           uint8(s.VibratoWaveform),
+	}
+	for i := range raw.DOSFilename {
+		if i < len(s.Filename) {
+			raw.DOSFilename[i] = s.Filename[i]
+		}
+	}
+	for i := range raw.SampleName {
+		if i < len(s.Name) {
+			raw.SampleName[i] = s.Name[i]
+		}
+	}
+	if s.Signed {
+		raw.Cvt = 0x01
+	}
+	if s.DefaultPanOn {
+		raw.DfP |= 0x80
+	}
+
+	if err := binary.Write(w, binary.LittleEndian, raw); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, s.Data); err != nil {
+		return err
+	}
+
+	return nil
 }

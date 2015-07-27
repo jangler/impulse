@@ -12,28 +12,7 @@ var squareITS = []byte("IMPSsquare.wav\x00\x00\x00\x01\x01\x02square.wav\x00" +
 	"\x80\x80\x80\x80\x80\x80\x80\x80\x80\u007f\u007f\u007f\u007f\u007f" +
 	"\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f")
 
-func TestReadSample(t *testing.T) {
-	// test invalid read on empty data
-	r := bytes.NewReader([]byte{})
-	if _, err := ReadSample(r); err == nil {
-		t.Errorf("ReadSample() did not return error for empty data")
-	}
-
-	// test invalid read on bad data
-	data := append([]byte("NOPE"), squareITS[4:]...)
-	r = bytes.NewReader(data)
-	if _, err := ReadSample(r); err == nil {
-		t.Errorf("ReadSample() did not return error for bad data")
-	}
-
-	// test valid read
-	r = bytes.NewReader(squareITS)
-	s, err := ReadSample(r)
-	if err != nil {
-		t.Fatalf("ReadSample() returned error: %v", err)
-	}
-
-	// test fields
+func checkSample(s *Sample, t *testing.T) {
 	if got, want := s.Filename, "square.wav"; got != want {
 		t.Errorf("Sample.Filename == %#v; want %#v", got, want)
 	}
@@ -94,5 +73,53 @@ func TestReadSample(t *testing.T) {
 	if got := s.Data; bytes.Compare(got, want) != 0 {
 		t.Errorf("Sample.Data == %v; want %v", got, want)
 	}
+}
 
+func TestReadSample(t *testing.T) {
+	// test invalid read on empty data
+	r := bytes.NewReader([]byte{})
+	if _, err := ReadSample(r); err == nil {
+		t.Errorf("ReadSample() did not return error for empty data")
+	}
+
+	// test invalid read on bad data
+	data := append([]byte("NOPE"), squareITS[4:]...)
+	r = bytes.NewReader(data)
+	if _, err := ReadSample(r); err == nil {
+		t.Errorf("ReadSample() did not return error for bad data")
+	}
+
+	// test valid read
+	r = bytes.NewReader(squareITS)
+	s, err := ReadSample(r)
+	if err != nil {
+		t.Fatalf("ReadSample() returned error: %v", err)
+	}
+
+	// test fields
+	checkSample(s, t)
+}
+
+func TestSampleWrite(t *testing.T) {
+	// read sample
+	r := bytes.NewReader(squareITS)
+	s, err := ReadSample(r)
+	if err != nil {
+		t.Fatalf("ReadSample() returned error: %v", err)
+	}
+
+	// write sample to buffer
+	buf := new(bytes.Buffer)
+	if err := s.Write(buf); err != nil {
+		t.Fatalf("Sample.Write() returned error: %v", err)
+	}
+
+	// read sample from buffer
+	s, err = ReadSample(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("ReadSample() returned error: %v", err)
+	}
+
+	// test fields
+	checkSample(s, t)
 }
