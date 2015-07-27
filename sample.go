@@ -13,9 +13,9 @@ const (
 	SampleAssociatedWithHeader SampleFlag = 1 << iota
 	Quality16Bit
 	StereoSample
+	Compressed
 	Loop
 	SustainLoop
-	Compressed
 	PingPongLoop
 	PingPongSustainLoop
 )
