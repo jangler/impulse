@@ -42,6 +42,7 @@ type Module struct {
 	ChannelVolume   []uint8 // range 0->64
 	OrderList       []uint8 // range 0->199, 254, 255
 	Samples         []*Sample
+	Instruments     []*Instrument
 }
 
 func moduleFromRaw(raw *rawModule, r io.ReadSeeker) (*Module, error) {
@@ -68,6 +69,7 @@ func moduleFromRaw(raw *rawModule, r io.ReadSeeker) (*Module, error) {
 	if _, err := r.Read(m.OrderList); err != nil {
 		return nil, err
 	}
+
 	for i := range m.Samples {
 		var err error
 		ptrOffset := 0xc0 + int64(raw.OrdNum+raw.InsNum*4) + int64(i*4)
@@ -80,6 +82,21 @@ func moduleFromRaw(raw *rawModule, r io.ReadSeeker) (*Module, error) {
 			return nil, err
 		}
 		if m.Samples[i], err = ReadSample(r); err != nil {
+			return nil, err
+		}
+	}
+	for i := range m.Instruments {
+		var err error
+		ptrOffset := 0xc0 + int64(raw.OrdNum) + int64(i*4)
+		if _, err = r.Seek(ptrOffset, 0); err != nil {
+			return nil, err
+		}
+		var insOffset uint32
+		binary.Read(r, binary.LittleEndian, &insOffset)
+		if _, err = r.Seek(int64(insOffset), 0); err != nil {
+			return nil, err
+		}
+		if m.Instruments[i], err = ReadInstrument(r); err != nil {
 			return nil, err
 		}
 	}
