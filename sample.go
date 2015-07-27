@@ -48,7 +48,7 @@ type rawSample struct {
 
 // Sample is an Impulse Tracker sample.
 type Sample struct {
-	Filename         string // max 11 bytes
+	Filename         string // max 12 bytes
 	GlobalVolume     uint8  // range 0->64
 	Flags            SampleFlag
 	DefaultVolume    uint8  // range 0->64
@@ -77,7 +77,7 @@ func sampleFromRaw(raw *rawSample, r io.ReadSeeker) (*Sample, error) {
 		DefaultVolume:    raw.Vol,
 		Name:             string(bytes.Trim(raw.SampleName[:], "\x00")),
 		Signed:           raw.Cvt&0x01 != 0,
-		DefaultPan:       raw.DfP & 0x4f,
+		DefaultPan:       raw.DfP & 0x7f,
 		DefaultPanOn:     raw.DfP&0x80 != 0,
 		Length:           raw.Length,
 		LoopBegin:        raw.LoopBegin,
