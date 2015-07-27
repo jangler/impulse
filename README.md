@@ -7,11 +7,20 @@ Status
 ------
 Alpha. Not much is implemented, and breaking changes may occur.
 
+Currently implemented:
+
+- ITS (sample) reading and writing
+- ITI (instrument) reading
+
 Installation
 ------------
 Install or update via the [go command](http://golang.org/cmd/go/):
 
 	go get -u github.com/jangler/impulse
+
+Examples
+--------
+- [itdump.go](https://github.com/jangler/tools/blob/master/itdump/itdump.go)
 
 Documentation
 -------------
