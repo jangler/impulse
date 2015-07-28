@@ -34,26 +34,7 @@ var testITI = []byte("IMPIfilename\x00\x00\x00\x00\x00\x01\x01\x01\x00\x01" +
 	"\x00\x00\xe0\x00\x00\xe0\x00\x00\xe0\x00\x00\xe0\x00\x00\x00\x00\x00" +
 	"\x00\x00")
 
-func TestReadInstrument(t *testing.T) {
-	// test invalid read on empty data
-	r := bytes.NewReader([]byte{})
-	if _, err := ReadInstrument(r); err == nil {
-		t.Errorf("ReadInstrument() did not return error for empty data")
-	}
-
-	// test invalid read on bad data
-	data := append([]byte("NOPE"), testITI[4:]...)
-	r = bytes.NewReader(data)
-	if _, err := ReadInstrument(r); err == nil {
-		t.Errorf("ReadInstrument() did not return error for bad data")
-	}
-
-	// test valid read
-	r = bytes.NewReader(testITI)
-	ins, err := ReadInstrument(r)
-	if err != nil {
-		t.Fatalf("ReadInstrument() returned error: %v", err)
-	}
+func checkInstrument(ins *Instrument, t *testing.T) {
 	if got, want := ins.Filename, "filename"; got != want {
 		t.Errorf("Instrument.Filename == %#v; want %#v", got, want)
 	}
@@ -90,6 +71,9 @@ func TestReadInstrument(t *testing.T) {
 	}
 	if got, want := ins.PanSwing, uint8(2); got != want {
 		t.Errorf("Instrument.PanSwing == %v; want %v", got, want)
+	}
+	if got, want := ins.NumSamples, uint8(0); got != want {
+		t.Errorf("Instrument.NumSamples == %v; want %v", got, want)
 	}
 	if got, want := ins.Name, "name"; got != want {
 		t.Errorf("Instrument.Name == %#v; want %#v", got, want)
@@ -157,4 +141,53 @@ func TestReadInstrument(t *testing.T) {
 				want)
 		}
 	}
+}
+
+func TestReadInstrument(t *testing.T) {
+	// test invalid read on empty data
+	r := bytes.NewReader([]byte{})
+	if _, err := ReadInstrument(r); err == nil {
+		t.Errorf("ReadInstrument() did not return error for empty data")
+	}
+
+	// test invalid read on bad data
+	data := append([]byte("NOPE"), testITI[4:]...)
+	r = bytes.NewReader(data)
+	if _, err := ReadInstrument(r); err == nil {
+		t.Errorf("ReadInstrument() did not return error for bad data")
+	}
+
+	// test valid read
+	r = bytes.NewReader(testITI)
+	ins, err := ReadInstrument(r)
+	if err != nil {
+		t.Fatalf("ReadInstrument() returned error: %v", err)
+	}
+
+	// test fields
+	checkInstrument(ins, t)
+}
+
+func TestInstrumentWrite(t *testing.T) {
+	// read instrument
+	r := bytes.NewReader(testITI)
+	ins, err := ReadInstrument(r)
+	if err != nil {
+		t.Fatalf("ReadInstrument() returned error: %v", err)
+	}
+
+	// write sample to buffer
+	buf := new(bytes.Buffer)
+	if err := ins.Write(buf); err != nil {
+		t.Fatalf("Sample.Write() returned error: %v", err)
+	}
+
+	// read sample from buffer
+	ins, err = ReadInstrument(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("ReadInstrument() returned error: %v", err)
+	}
+
+	// test fields
+	checkInstrument(ins, t)
 }

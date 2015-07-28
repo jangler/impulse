@@ -9,8 +9,9 @@ Alpha. Not much is implemented, and breaking changes may occur.
 
 Currently implemented:
 
-- ITS (sample) reading and writing
-- ITI (instrument) reading
+- IT (module) read
+- ITI (instrument) read/write
+- ITS (sample) read/write
 
 Installation
 ------------

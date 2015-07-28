@@ -43,7 +43,7 @@ type rawInstrument struct {
 	NoS             uint8
 	_               byte
 	Name            [26]byte
-	IFC, IFR        uint8
+	IFC, IFR        int8
 	MCh             byte
 	MPr             int8
 	MIDIBnk         [2]int8
@@ -110,9 +110,12 @@ type Instrument struct {
 	GlobalVolume         uint8  // range 0->128
 	DefaultPan           uint8  // range 0->64
 	DefaultPanOn         bool
-	VolumeSwing          uint8  // range 0->100
-	PanSwing             uint8  // range 0->64
+	VolumeSwing          uint8 // range 0->100
+	PanSwing             uint8 // range 0->64
+	NumSamples           uint8
 	Name                 string // max 26 bytes
+	DefaultCutoff        int8   // range -1->127
+	DefaultResonance     int8   // range -1->127
 	MIDIChannel          byte
 	MIDIProgram          int8 // range -1->127
 	MIDIBankLow          int8 // range -1->127
@@ -148,7 +151,10 @@ func instrumentFromRaw(raw *rawInstrument) *Instrument {
 		DefaultPanOn:         raw.DfP&0x80 == 0,
 		VolumeSwing:          raw.RV,
 		PanSwing:             raw.RP,
+		NumSamples:           raw.NoS,
 		Name:                 string(bytes.Trim(raw.Name[:], "\x00")),
+		DefaultCutoff:        raw.IFC,
+		DefaultResonance:     raw.IFR,
 		MIDIChannel:          raw.MCh,
 		MIDIProgram:          raw.MPr,
 		MIDIBankLow:          int8(raw.MIDIBnk[0]),
@@ -170,4 +176,62 @@ func ReadInstrument(r io.Reader) (*Instrument, error) {
 		return nil, errors.New("data is not Impulse Tracker instrument")
 	}
 	return instrumentFromRaw(raw), nil
+}
+
+func envelopeToRaw(env *Envelope) rawEnvelope {
+	raw := rawEnvelope{
+		Flg: uint8(env.Flags),
+		Num: uint8(len(env.NodePoints)),
+		LpB: env.LoopBegin,
+		LpE: env.LoopEnd,
+		SLB: env.SusLoopBegin,
+		SLE: env.SusLoopEnd,
+	}
+	for i := range raw.NodePoints {
+		if i < len(env.NodePoints) {
+			raw.NodePoints[i] = env.NodePoints[i]
+		}
+	}
+	return raw
+}
+
+// Write writes the Instrument to w in ITI format.
+func (ins *Instrument) Write(w io.Writer) error {
+	raw := &rawInstrument{
+		MagicString:     [4]byte{'I', 'M', 'P', 'I'},
+		NNA:             byte(ins.NewNoteAction),
+		DCT:             byte(ins.DuplicateCheckType),
+		DCA:             byte(ins.DuplicateCheckAction),
+		FadeOut:         ins.FadeOut,
+		PPS:             ins.PitchPanSeparation,
+		PPC:             ins.PitchPanCenter,
+		GbV:             ins.GlobalVolume,
+		DfP:             ins.DefaultPan,
+		RV:              ins.VolumeSwing,
+		RP:              ins.PanSwing,
+		NoS:             ins.NumSamples,
+		IFC:             ins.DefaultCutoff,
+		IFR:             ins.DefaultResonance,
+		MCh:             ins.MIDIChannel,
+		MPr:             ins.MIDIProgram,
+		MIDIBnk:         [2]int8{ins.MIDIBankLow, ins.MIDIBankHigh},
+		KeyboardTable:   ins.KeyboardTable,
+		VolumeEnvelope:  envelopeToRaw(ins.VolumeEnvelope),
+		PanningEnvelope: envelopeToRaw(ins.PanningEnvelope),
+		PitchEnvelope:   envelopeToRaw(ins.PitchEnvelope),
+	}
+	for i := range raw.DOSFilename {
+		if i < len(ins.Filename) {
+			raw.DOSFilename[i] = ins.Filename[i]
+		}
+	}
+	if !ins.DefaultPanOn {
+		raw.DfP |= 0x80
+	}
+	for i := range raw.Name {
+		if i < len(ins.Name) {
+			raw.Name[i] = ins.Name[i]
+		}
+	}
+	return binary.Write(w, binary.LittleEndian, raw)
 }
